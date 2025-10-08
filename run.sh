@@ -15,8 +15,31 @@ NO_FEATURE=0
 IMAGE_FOLDER=""
 RESULT_FOLDER=""
 
+usage() {
+  cat <<'EOF'
+Usage: sh run.sh [options]
+
+Options:
+  --image_folder=PATH   Absolute or relative path to the folder containing input images.
+  --result_folder=PATH  Absolute or relative path where pipeline outputs should be written.
+  --no_process          Skip the preprocessing stage.
+  --no_quality          Skip the image quality assessment stage.
+  --no_segmentation     Skip the vessel/artery-vein/optic-disc segmentation stage.
+  --no_feature          Skip feature extraction and CSV merging.
+  -h, --help            Show this help message and exit.
+
+If paths are omitted, the script falls back to ./images and ./Results, or
+${AUTOMORPH_DATA}/images and ${AUTOMORPH_DATA}/Results when the environment
+variable AUTOMORPH_DATA is set.
+EOF
+}
+
 for arg in "$@"; do
   case $arg in
+    -h|--help)
+      usage
+      exit 0
+      ;;
     --no_process)
       NO_PROCESS=1
       shift
@@ -64,6 +87,8 @@ fi
 echo "Using image folder: ${IMAGE_FOLDER}"
 echo "Using result folder: ${RESULT_FOLDER}"
 
+export PYTHONPATH="$(pwd):${PYTHONPATH}"
+
 # ----------------------------- #
 # Step 0 - Prepare AUTOMORPH_DATA directory and clean up results
 # ----------------------------- #
@@ -74,6 +99,9 @@ mkdir -p "${RESULT_FOLDER}"
 rm -rf "${RESULT_FOLDER}"/*
 
 mkdir -p "${IMAGE_FOLDER}"
+
+RESOLUTION_FILE=$(python generate_resolution.py --image_folder "${IMAGE_FOLDER}" --result_folder "${RESULT_FOLDER}")
+export AUTOMORPH_RESOLUTION_FILE="${RESOLUTION_FILE}"
 
 # ----------------------------- #
 # Step 1 - Image Preprocessing
