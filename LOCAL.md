@@ -44,6 +44,15 @@ Put the images in folder 'images' and
 sh run.sh
 ```
 
+To run the pipeline with explicit folders, provide absolute or relative paths
+via the new command-line options, for example:
+
+```bash
+sh run.sh --image_folder=/data/fundus/images --result_folder=/data/fundus/results
+```
+
+The script will create the results directory if it does not exist.
+
 Please note that resolution_information.csv includes the resolution for image, i.e., size for each pixel. Please prepare it for the customised data in the same format.
 
 
