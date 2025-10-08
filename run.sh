@@ -12,6 +12,8 @@ NO_PROCESS=0
 NO_QUALITY=0
 NO_SEGMENTATION=0
 NO_FEATURE=0
+IMAGE_FOLDER=""
+RESULT_FOLDER=""
 
 for arg in "$@"; do
   case $arg in
@@ -31,8 +33,36 @@ for arg in "$@"; do
       NO_FEATURE=1
       shift
       ;;
+    --image_folder=*)
+      IMAGE_FOLDER="${arg#*=}"
+      shift
+      ;;
+    --result_folder=*)
+      RESULT_FOLDER="${arg#*=}"
+      shift
+      ;;
   esac
 done
+
+# Default paths if not provided
+if [ -z "$IMAGE_FOLDER" ]; then
+  if [ -n "${AUTOMORPH_DATA}" ]; then
+    IMAGE_FOLDER="${AUTOMORPH_DATA}/images"
+  else
+    IMAGE_FOLDER="./images"
+  fi
+fi
+
+if [ -z "$RESULT_FOLDER" ]; then
+  if [ -n "${AUTOMORPH_DATA}" ]; then
+    RESULT_FOLDER="${AUTOMORPH_DATA}/Results"
+  else
+    RESULT_FOLDER="./Results"
+  fi
+fi
+
+echo "Using image folder: ${IMAGE_FOLDER}"
+echo "Using result folder: ${RESULT_FOLDER}"
 
 # ----------------------------- #
 # Step 0 - Prepare AUTOMORPH_DATA directory and clean up results
@@ -40,13 +70,10 @@ done
 
 python automorph_data.py
 
-if [ -z "${AUTOMORPH_DATA}" ]; then
-  rm -rf ./Results/*
-  echo "AUTOMORPH_DATA not set, using default directory"
-else
-  rm -rf "${AUTOMORPH_DATA}/Results"/*
-  echo "AUTOMORPH_DATA set to ${AUTOMORPH_DATA}"
-fi
+mkdir -p "${RESULT_FOLDER}"
+rm -rf "${RESULT_FOLDER}"/*
+
+mkdir -p "${IMAGE_FOLDER}"
 
 # ----------------------------- #
 # Step 1 - Image Preprocessing
@@ -54,7 +81,7 @@ fi
 if [ $NO_PROCESS -eq 0 ]; then
   echo "### Preprocess Start ###"
   cd M0_Preprocess
-  python EyeQ_process_main.py
+  python EyeQ_process_main.py --image_folder "${IMAGE_FOLDER}" --result_folder "${RESULT_FOLDER}"
   cd ..
 else
   echo "### Skipping Preprocessing ###"
@@ -66,8 +93,8 @@ fi
 if [ $NO_QUALITY -eq 0 ]; then
   echo "### Image Quality Assessment ###"
   cd M1_Retinal_Image_quality_EyePACS
-  sh test_outside.sh
-  python merge_quality_assessment.py
+  sh test_outside.sh "${IMAGE_FOLDER}" "${RESULT_FOLDER}"
+  python merge_quality_assessment.py --image_folder "${IMAGE_FOLDER}" --result_folder "${RESULT_FOLDER}"
   cd ..
 else
   echo "### Skipping Image Quality Assessment ###"
@@ -78,17 +105,17 @@ fi
 # ----------------------------- #
 if [ $NO_SEGMENTATION -eq 0 ]; then
   echo "### Segmentation Modules ###"
-  
+
   cd M2_Vessel_seg
-  sh test_outside.sh
+  sh test_outside.sh "${IMAGE_FOLDER}" "${RESULT_FOLDER}"
   cd ..
 
   cd M2_Artery_vein
-  sh test_outside.sh
+  sh test_outside.sh "${IMAGE_FOLDER}" "${RESULT_FOLDER}"
   cd ..
 
   cd M2_lwnet_disc_cup
-  sh test_outside.sh
+  sh test_outside.sh "${IMAGE_FOLDER}" "${RESULT_FOLDER}"
   cd ..
 else
   echo "### Skipping Segmentation Modules ###"
@@ -101,18 +128,18 @@ if [ $NO_FEATURE -eq 0 ]; then
   echo "### Feature Measuring ###"
 
   cd M3_feature_zone/retipy/
-  python create_datasets_disc_centred_B.py
-  python create_datasets_disc_centred_C.py
-  python create_datasets_macular_centred_B.py
-  python create_datasets_macular_centred_C.py
+  python create_datasets_disc_centred_B.py --image_folder "${IMAGE_FOLDER}" --result_folder "${RESULT_FOLDER}"
+  python create_datasets_disc_centred_C.py --image_folder "${IMAGE_FOLDER}" --result_folder "${RESULT_FOLDER}"
+  python create_datasets_macular_centred_B.py --image_folder "${IMAGE_FOLDER}" --result_folder "${RESULT_FOLDER}"
+  python create_datasets_macular_centred_C.py --image_folder "${IMAGE_FOLDER}" --result_folder "${RESULT_FOLDER}"
   cd ../..
 
   cd M3_feature_whole_pic/retipy/
-  python create_datasets_macular_centred.py
-  python create_datasets_disc_centred.py
+  python create_datasets_macular_centred.py --image_folder "${IMAGE_FOLDER}" --result_folder "${RESULT_FOLDER}"
+  python create_datasets_disc_centred.py --image_folder "${IMAGE_FOLDER}" --result_folder "${RESULT_FOLDER}"
   cd ../..
 
-  python csv_merge.py
+  python csv_merge.py --image_folder "${IMAGE_FOLDER}" --result_folder "${RESULT_FOLDER}"
 else
   echo "### Skipping Feature Measurement ###"
 fi
