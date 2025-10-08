@@ -43,8 +43,6 @@ DEFAULT_AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA','../..')
 
 AUTOMORPH_DATA = DEFAULT_AUTOMORPH_DATA
 
-AUTOMORPH_DATA = DEFAULT_AUTOMORPH_DATA
-
 parser = argparse.ArgumentParser()
 
 parser.add_argument(

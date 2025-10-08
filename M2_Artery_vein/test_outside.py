@@ -273,6 +273,7 @@ def get_args():
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('--batch-size', type=int, default=6, help='Batch size', dest='batchsize')
+    parser.add_argument('--num_workers', type=int, default=8, help='Number of worker processes for the DataLoader', dest='num_workers')
     parser.add_argument('--job_name', type=str, default='J', help='type of discriminator', dest='jn')
     parser.add_argument('--dataset', type=str, help='test dataset name', dest='dataset')
     parser.add_argument('--checkstart', type=int, help='test dataset name', dest='CS')
@@ -331,7 +332,14 @@ if __name__ == '__main__':
 
 
     dataset = LearningAVSegData_OOD(test_dir, test_label, test_mask, img_size, dataset_name=dataset_name, train_or=False)
-    test_loader = DataLoader(dataset, batch_size=args.batchsize, shuffle=False, num_workers=8, pin_memory=False, drop_last=False)
+    test_loader = DataLoader(
+        dataset,
+        batch_size=args.batchsize,
+        shuffle=False,
+        num_workers=args.num_workers,
+        pin_memory=False,
+        drop_last=False,
+    )
 
 
     net_G_1 = Generator_main(input_channels=3, n_filters = 32, n_classes=4, bilinear=False)

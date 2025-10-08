@@ -34,6 +34,7 @@ def test_net(model_fl_1,
               device,
               epochs=5,
               batch_size=20,
+              num_workers=8,
               image_size=(512,512),
               ):
 
@@ -47,7 +48,14 @@ def test_net(model_fl_1,
     dataset = BasicDataset_OUT(test_dir, image_size, n_classes, train_or=False)
         
     n_test = len(dataset)
-    val_loader = DataLoader(dataset, batch_size, shuffle=False, num_workers=8, pin_memory=False, drop_last=False)
+    val_loader = DataLoader(
+        dataset,
+        batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=False,
+        drop_last=False,
+    )
     
     prediction_decode_list = []
     filename_list = []
@@ -170,6 +178,13 @@ def get_args():
                         help='Backbone of the model')
     parser.add_argument('--seed_num', type=int, default=42, help='Validation split seed', dest='seed')
     parser.add_argument('--local_rank', default=0, type=int)
+    parser.add_argument(
+        '--num_workers',
+        type=int,
+        default=8,
+        help='Number of worker processes for the DataLoader',
+        dest='num_workers'
+    )
     parser.add_argument(
         '--image_folder',
         type=str,
@@ -301,6 +316,7 @@ if __name__ == '__main__':
                   device=device,
                   epochs=args.epochs,
                   batch_size=args.batchsize,
+                  num_workers=args.num_workers,
                   image_size=img_size)
     except KeyboardInterrupt:
         torch.save(model_fl.state_dict(), 'INTERRUPTED.pth')

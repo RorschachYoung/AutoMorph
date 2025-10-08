@@ -14,6 +14,8 @@ NO_SEGMENTATION=0
 NO_FEATURE=0
 IMAGE_FOLDER=""
 RESULT_FOLDER=""
+BATCH_SIZE=""
+NUM_WORKERS=""
 
 usage() {
   cat <<'EOF'
@@ -22,6 +24,8 @@ Usage: sh run.sh [options]
 Options:
   --image_folder=PATH   Absolute or relative path to the folder containing input images.
   --result_folder=PATH  Absolute or relative path where pipeline outputs should be written.
+  --batch_size=INT      Override the batch size used by deep learning modules.
+  --num_workers=INT     Override the DataLoader worker count used by deep learning modules.
   --no_process          Skip the preprocessing stage.
   --no_quality          Skip the image quality assessment stage.
   --no_segmentation     Skip the vessel/artery-vein/optic-disc segmentation stage.
@@ -64,6 +68,14 @@ for arg in "$@"; do
       RESULT_FOLDER="${arg#*=}"
       shift
       ;;
+    --batch_size=*)
+      BATCH_SIZE="${arg#*=}"
+      shift
+      ;;
+    --num_workers=*)
+      NUM_WORKERS="${arg#*=}"
+      shift
+      ;;
   esac
 done
 
@@ -86,8 +98,30 @@ fi
 
 echo "Using image folder: ${IMAGE_FOLDER}"
 echo "Using result folder: ${RESULT_FOLDER}"
+if [ -n "${BATCH_SIZE}" ]; then
+  echo "Using batch size override: ${BATCH_SIZE}"
+fi
+if [ -n "${NUM_WORKERS}" ]; then
+  echo "Using dataloader workers override: ${NUM_WORKERS}"
+fi
 
 export PYTHONPATH="$(pwd):${PYTHONPATH}"
+
+if [ -n "${BATCH_SIZE}" ]; then
+  export AUTOMORPH_BATCH_SIZE="${BATCH_SIZE}"
+fi
+if [ -n "${NUM_WORKERS}" ]; then
+  export AUTOMORPH_NUM_WORKERS="${NUM_WORKERS}"
+fi
+
+QUALITY_BATCH_ARG="${BATCH_SIZE}"
+QUALITY_WORKER_ARG="${NUM_WORKERS}"
+SEG_BATCH_ARG="${BATCH_SIZE}"
+SEG_WORKER_ARG="${NUM_WORKERS}"
+CUP_BATCH_ARG="${BATCH_SIZE}"
+CUP_WORKER_ARG="${NUM_WORKERS}"
+AV_BATCH_ARG="${BATCH_SIZE}"
+AV_WORKER_ARG="${NUM_WORKERS}"
 
 # ----------------------------- #
 # Step 0 - Prepare AUTOMORPH_DATA directory and clean up results
@@ -121,7 +155,7 @@ fi
 if [ $NO_QUALITY -eq 0 ]; then
   echo "### Image Quality Assessment ###"
   cd M1_Retinal_Image_quality_EyePACS
-  sh test_outside.sh "${IMAGE_FOLDER}" "${RESULT_FOLDER}"
+  sh test_outside.sh "${IMAGE_FOLDER}" "${RESULT_FOLDER}" "${QUALITY_BATCH_ARG}" "${QUALITY_WORKER_ARG}"
   python merge_quality_assessment.py --image_folder "${IMAGE_FOLDER}" --result_folder "${RESULT_FOLDER}"
   cd ..
 else
@@ -135,15 +169,15 @@ if [ $NO_SEGMENTATION -eq 0 ]; then
   echo "### Segmentation Modules ###"
 
   cd M2_Vessel_seg
-  sh test_outside.sh "${IMAGE_FOLDER}" "${RESULT_FOLDER}"
+  sh test_outside.sh "${IMAGE_FOLDER}" "${RESULT_FOLDER}" "${SEG_BATCH_ARG}" "${SEG_WORKER_ARG}"
   cd ..
 
   cd M2_Artery_vein
-  sh test_outside.sh "${IMAGE_FOLDER}" "${RESULT_FOLDER}"
+  sh test_outside.sh "${IMAGE_FOLDER}" "${RESULT_FOLDER}" "${AV_BATCH_ARG}" "${AV_WORKER_ARG}"
   cd ..
 
   cd M2_lwnet_disc_cup
-  sh test_outside.sh "${IMAGE_FOLDER}" "${RESULT_FOLDER}"
+  sh test_outside.sh "${IMAGE_FOLDER}" "${RESULT_FOLDER}" "${CUP_BATCH_ARG}" "${CUP_WORKER_ARG}"
   cd ..
 else
   echo "### Skipping Segmentation Modules ###"
