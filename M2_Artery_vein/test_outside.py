@@ -4,6 +4,7 @@ import argparse
 import logging
 import shutil
 import os
+import sys
 import cv2
 import torchvision
 import torch
@@ -19,8 +20,15 @@ from skimage import io
 from scripts.utils import Define_image_size
 from FD_cal import fractal_dimension,vessel_density
 from skimage.morphology import skeletonize,remove_small_objects
+from pathlib import Path
 
-AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA','..')
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from automorph_paths import prepare_automorph_data
+
+DEFAULT_AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA', '..')
+
+
+AUTOMORPH_DATA = DEFAULT_AUTOMORPH_DATA
 
 def filter_frag(data_path):
     if os.path.isdir(data_path + 'raw/.ipynb_checkpoints'):
@@ -265,18 +273,35 @@ def get_args():
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('--batch-size', type=int, default=6, help='Batch size', dest='batchsize')
+    parser.add_argument('--num_workers', type=int, default=8, help='Number of worker processes for the DataLoader', dest='num_workers')
     parser.add_argument('--job_name', type=str, default='J', help='type of discriminator', dest='jn')
     parser.add_argument('--dataset', type=str, help='test dataset name', dest='dataset')
     parser.add_argument('--checkstart', type=int, help='test dataset name', dest='CS')
     parser.add_argument('--uniform', type=str, default='False', help='whether to uniform the image size', dest='uniform')
+    parser.add_argument(
+        '--image_folder',
+        type=str,
+        default=str(Path(DEFAULT_AUTOMORPH_DATA) / 'images'),
+        help='Path to the folder containing input images',
+        dest='image_folder'
+    )
+    parser.add_argument(
+        '--result_folder',
+        type=str,
+        default=str(Path(DEFAULT_AUTOMORPH_DATA) / 'Results'),
+        help='Path to the AutoMorph results folder',
+        dest='result_folder'
+    )
 
     return parser.parse_args()
 
 
 if __name__ == '__main__':
-    
+
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     args = get_args()
+    AUTOMORPH_DATA, _ = prepare_automorph_data(args.image_folder, args.result_folder)
+    os.environ['AUTOMORPH_DATA'] = AUTOMORPH_DATA
     # Check if CUDA is available
     if torch.cuda.is_available():
         logging.info("CUDA is available. Using CUDA...")
@@ -307,7 +332,14 @@ if __name__ == '__main__':
 
 
     dataset = LearningAVSegData_OOD(test_dir, test_label, test_mask, img_size, dataset_name=dataset_name, train_or=False)
-    test_loader = DataLoader(dataset, batch_size=args.batchsize, shuffle=False, num_workers=8, pin_memory=False, drop_last=False)
+    test_loader = DataLoader(
+        dataset,
+        batch_size=args.batchsize,
+        shuffle=False,
+        num_workers=args.num_workers,
+        pin_memory=False,
+        drop_last=False,
+    )
 
 
     net_G_1 = Generator_main(input_channels=3, n_filters = 32, n_classes=4, bilinear=False)

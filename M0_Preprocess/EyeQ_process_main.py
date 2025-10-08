@@ -1,11 +1,21 @@
 import fundus_prep as prep
 import os
+import sys
 import pandas as pd
 from PIL import ImageFile
 import shutil
+from argparse import ArgumentParser
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from automorph_paths import prepare_automorph_data
+
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA','..')
+DEFAULT_AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA', '..')
+
+
+AUTOMORPH_DATA = DEFAULT_AUTOMORPH_DATA
 
 def process(image_list, save_path):
     
@@ -42,6 +52,21 @@ def process(image_list, save_path):
 
 
 if __name__ == "__main__":
+    parser = ArgumentParser(description="Preprocess fundus images for AutoMorph")
+    parser.add_argument(
+        "--image_folder",
+        default=str(Path(DEFAULT_AUTOMORPH_DATA) / "images"),
+        help="Path to the folder containing source images",
+    )
+    parser.add_argument(
+        "--result_folder",
+        default=str(Path(DEFAULT_AUTOMORPH_DATA) / "Results"),
+        help="Path to the AutoMorph results folder",
+    )
+    args = parser.parse_args()
+
+    AUTOMORPH_DATA, _ = prepare_automorph_data(args.image_folder, args.result_folder)
+
     if os.path.exists(f'{AUTOMORPH_DATA}/images/.ipynb_checkpoints'):
         shutil.rmtree(f'{AUTOMORPH_DATA}/images/.ipynb_checkpoints')
     image_list = sorted(os.listdir(f'{AUTOMORPH_DATA}/images'))

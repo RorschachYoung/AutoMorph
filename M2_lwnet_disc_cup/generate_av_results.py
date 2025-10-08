@@ -17,8 +17,15 @@ from skimage import measure
 import pandas as pd
 from skimage.morphology import remove_small_objects
 import logging
+from pathlib import Path
 
-AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA','..')
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from automorph_paths import prepare_automorph_data
+
+DEFAULT_AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA', '..')
+
+
+AUTOMORPH_DATA = DEFAULT_AUTOMORPH_DATA
 
 # argument parsing
 parser = argparse.ArgumentParser()
@@ -30,6 +37,12 @@ parser.add_argument('--config_file', type=str, default=None,
 parser.add_argument('--im_size', help='delimited list input, could be 600,400', type=str, default='512')
 parser.add_argument('--device', type=str, default='cuda:0', help='where to run the training code (e.g. "cpu" or "cuda:0") [default: %(default)s]')
 parser.add_argument('--results_path', type=str, default='results', help='path to save predictions (defaults to results')
+parser.add_argument('--batch_size', type=int, default=16, help='Batch size for inference dataloaders')
+parser.add_argument('--num_workers', type=int, default=8, help='Number of worker processes for inference dataloaders')
+parser.add_argument('--image_folder', type=str, default=str(Path(DEFAULT_AUTOMORPH_DATA) / 'images'),
+                    help='Path to the folder containing input images')
+parser.add_argument('--result_folder', type=str, default=str(Path(DEFAULT_AUTOMORPH_DATA) / 'Results'),
+                    help='Path to the AutoMorph results folder')
 
 
 def intersection(mask,vessel_, it_x, it_y):
@@ -615,9 +628,11 @@ def prediction_eval(model_1,model_2,model_3,model_4,model_5,model_6,model_7,mode
 
 
 if __name__ == '__main__':
-    
+
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     args = parser.parse_args()
+    AUTOMORPH_DATA, _ = prepare_automorph_data(args.image_folder, args.result_folder)
+    os.environ['AUTOMORPH_DATA'] = AUTOMORPH_DATA
     results_path = args.results_path
     # Check if CUDA is available
     if torch.cuda.is_available():
@@ -655,7 +670,13 @@ if __name__ == '__main__':
     data_path = f'{AUTOMORPH_DATA}/Results/M1/Good_quality/'
 
     csv_path = 'test_all.csv'
-    test_loader = get_test_dataset(data_path, csv_path=csv_path, tg_size=tg_size)
+    test_loader = get_test_dataset(
+        data_path,
+        csv_path=csv_path,
+        tg_size=tg_size,
+        batch_size=args.batch_size,
+        num_workers=args.num_workers,
+    )
     
     model_1 = get_arch(model_name, n_classes=3).to(device)
     model_2 = get_arch(model_name, n_classes=3).to(device)

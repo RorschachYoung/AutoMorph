@@ -16,8 +16,16 @@ from skimage.morphology import skeletonize,remove_small_objects
 from skimage import io
 from FD_cal import fractal_dimension,vessel_density
 import shutil
+from pathlib import Path
+import sys
 
-AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA','..')
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from automorph_paths import prepare_automorph_data
+
+DEFAULT_AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA', '..')
+
+
+AUTOMORPH_DATA = DEFAULT_AUTOMORPH_DATA
 
 def filter_frag(data_path):
     if os.path.isdir(data_path + 'resize_binary/.ipynb_checkpoints'):
@@ -162,7 +170,7 @@ def segment_fundus(data_path, net_1, net_2, net_3, net_4, net_5, net_6, net_7, n
             pbar.update(imgs.shape[0])
 
 
-def test_net(data_path, batch_size, device, dataset_train, dataset_test, image_size, job_name, threshold, checkpoint_mode, mask_or=True, train_or=False):
+def test_net(data_path, batch_size, num_workers, device, dataset_train, dataset_test, image_size, job_name, threshold, checkpoint_mode, mask_or=True, train_or=False):
 
     #test_dir = "./data/{}/test/images/".format(dataset_test)
     test_dir = f'{AUTOMORPH_DATA}/Results/M1/Good_quality/'
@@ -173,7 +181,14 @@ def test_net(data_path, batch_size, device, dataset_train, dataset_test, image_s
     VD_list = []
     
     dataset_data = SEDataset_out(test_dir, test_label, mask_dir, image_size, dataset_test, threshold, uniform='True', train_or=False)
-    test_loader = DataLoader(dataset_data, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=False, drop_last=False)
+    test_loader = DataLoader(
+        dataset_data,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=False,
+        drop_last=False,
+    )
     
     dir_checkpoint_1="./Saved_model/train_on_{}/{}_savebest_randomseed_{}/".format(dataset_train,job_name,24)
     dir_checkpoint_2="./Saved_model/train_on_{}/{}_savebest_randomseed_{}/".format(dataset_train,job_name,26)
@@ -254,7 +269,8 @@ def get_args():
     parser.add_argument('--load', type=str, default=False, help='Load trained model from .pth file', dest='load')
     parser.add_argument('--discriminator', type=str, default='unet', help='type of discriminator', dest='dis')
     parser.add_argument('--jn', type=str, default='unet', help='type of discriminator', dest='jn')
-    parser.add_argument('--worker_num', type=int, default=2, help='type of discriminator', dest='worker')
+    parser.add_argument('--num_workers', type=int, help='Number of worker processes for the DataLoader', dest='num_workers')
+    parser.add_argument('--worker_num', type=int, help='Number of worker processes for the DataLoader (deprecated alias)', dest='num_workers')
     parser.add_argument('--save_model', type=str, default='regular', help='type of discriminator', dest='save')
     parser.add_argument('--train_test_mode', type=str, default='trainandtest', help='train and test, or directly test', dest='ttmode') 
     parser.add_argument('--pre_threshold', type=float, default=0.0, help='threshold in standalisation', dest='pthreshold')   
@@ -267,20 +283,39 @@ def get_args():
     parser.add_argument('--validation_ratio', type=float, default=10.0, help='Percent of the data that is used as validation 0-100', dest='val')
     parser.add_argument('--uniform', type=str, default='False', help='whether to uniform the image size', dest='uniform')
     parser.add_argument('--out_test', type=str, default='False', help='whether to uniform the image size', dest='data_path')
-    
+    parser.add_argument(
+        '--image_folder',
+        type=str,
+        default=str(Path(DEFAULT_AUTOMORPH_DATA) / 'images'),
+        help='Path to the folder containing input images',
+        dest='image_folder'
+    )
+    parser.add_argument(
+        '--result_folder',
+        type=str,
+        default=str(Path(DEFAULT_AUTOMORPH_DATA) / 'Results'),
+        help='Path to the AutoMorph results folder',
+        dest='result_folder'
+    )
+
     ####################### Loss weights ################################
-    
+
     parser.add_argument('--alpha', type=float, default=0.08, help='Loss weight of Adversarial Loss', dest='alpha')
     parser.add_argument('--beta', type=float, default=1.1, help='Loss weight of segmentation cross entropy', dest='beta')
     parser.add_argument('--gamma', type=float, default=0.5, help='Loss weight of segmentation mean square error', dest='gamma')
 
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.num_workers is None:
+        args.num_workers = 8
+    return args
 
 
 if __name__ == '__main__':
-    
+
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     args = get_args()
+    AUTOMORPH_DATA, _ = prepare_automorph_data(args.image_folder, args.result_folder)
+    os.environ['AUTOMORPH_DATA'] = AUTOMORPH_DATA
     # Check if CUDA is available
     if torch.cuda.is_available():
         logging.info("CUDA is available. Using CUDA...")
@@ -300,6 +335,7 @@ if __name__ == '__main__':
     
     test_net(data_path=args.data_path,
              batch_size=args.batchsize,
+             num_workers=args.num_workers,
              device=device,
              dataset_train=args.dataset,
              dataset_test=args.dataset_test, 

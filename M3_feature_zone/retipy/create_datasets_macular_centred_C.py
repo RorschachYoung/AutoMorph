@@ -26,25 +26,22 @@ import argparse
 import glob
 # import numpy as np
 import os
+import sys
 import h5py
 import shutil
 import pandas as pd
 # import scipy.stats as stats
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from automorph_paths import prepare_automorph_data
 
 from retipy import configuration, retina, tortuosity_measures
 
-AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA','../..')
+DEFAULT_AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA','../..')
 
-if os.path.exists(f'{AUTOMORPH_DATA}/Results/M2/artery_vein/macular_Zone_C_centred_artery_skeleton/.ipynb_checkpoints'):
-    shutil.rmtree(f'{AUTOMORPH_DATA}/Results/M2/artery_vein/macular_Zone_C_centred_artery_skeleton/.ipynb_checkpoints') 
-if os.path.exists(f'{AUTOMORPH_DATA}/Results/M2/binary_vessel/macular_Zone_C_centred_vein_skeleton/.ipynb_checkpoints'):
-    shutil.rmtree(f'{AUTOMORPH_DATA}/Results/M2/binary_vessel/macular_Zone_C_centred_vein_skeleton/.ipynb_checkpoints') 
-if os.path.exists(f'{AUTOMORPH_DATA}/Results/M2/artery_vein/macular_Zone_C_centred_binary_skeleton/.ipynb_checkpoints'):
-    shutil.rmtree(f'{AUTOMORPH_DATA}/Results/M2/artery_vein/macular_Zone_C_centred_binary_skeleton/.ipynb_checkpoints')
-if not os.path.exists(f'{AUTOMORPH_DATA}/Results/M3/Macular_centred/Width/'):
-    os.makedirs(f'{AUTOMORPH_DATA}/Results/M3/Macular_centred/Width/')
-#if os.path.exists('./DDR/av_seg/raw/.ipynb_checkpoints'):
-#    shutil.rmtree('./DDR/av_seg/raw/.ipynb_checkpoints') 
+
+AUTOMORPH_DATA = DEFAULT_AUTOMORPH_DATA
 
 
 parser = argparse.ArgumentParser()
@@ -54,7 +51,31 @@ parser.add_argument(
     "--configuration",
     help="the configuration file location",
     default="resources/retipy.config")
+parser.add_argument(
+    "--image_folder",
+    default=str(Path(DEFAULT_AUTOMORPH_DATA) / 'images'),
+    help="Path to the folder containing input images"
+)
+parser.add_argument(
+    "--result_folder",
+    default=str(Path(DEFAULT_AUTOMORPH_DATA) / 'Results'),
+    help="Path to the AutoMorph results folder"
+)
 args = parser.parse_args()
+
+AUTOMORPH_DATA, _ = prepare_automorph_data(args.image_folder, args.result_folder)
+
+if os.path.exists(f'{AUTOMORPH_DATA}/Results/M2/artery_vein/macular_Zone_C_centred_artery_skeleton/.ipynb_checkpoints'):
+    shutil.rmtree(f'{AUTOMORPH_DATA}/Results/M2/artery_vein/macular_Zone_C_centred_artery_skeleton/.ipynb_checkpoints')
+if os.path.exists(f'{AUTOMORPH_DATA}/Results/M2/binary_vessel/macular_Zone_C_centred_vein_skeleton/.ipynb_checkpoints'):
+    shutil.rmtree(f'{AUTOMORPH_DATA}/Results/M2/binary_vessel/macular_Zone_C_centred_vein_skeleton/.ipynb_checkpoints')
+if os.path.exists(f'{AUTOMORPH_DATA}/Results/M2/artery_vein/macular_Zone_C_centred_binary_skeleton/.ipynb_checkpoints'):
+    shutil.rmtree(f'{AUTOMORPH_DATA}/Results/M2/artery_vein/macular_Zone_C_centred_binary_skeleton/.ipynb_checkpoints')
+if not os.path.exists(f'{AUTOMORPH_DATA}/Results/M3/Macular_centred/Width/'):
+    os.makedirs(f'{AUTOMORPH_DATA}/Results/M3/Macular_centred/Width/')
+#if os.path.exists('./DDR/av_seg/raw/.ipynb_checkpoints'):
+#    shutil.rmtree('./DDR/av_seg/raw/.ipynb_checkpoints')
+
 
 CONFIG = configuration.Configuration(args.configuration)
 binary_FD_binary,binary_VD_binary,binary_Average_width,binary_t2_list,binary_t4_list,binary_t5_list = [],[],[],[],[],[]
