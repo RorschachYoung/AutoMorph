@@ -17,8 +17,51 @@ from skimage import measure
 import pandas as pd
 from skimage.morphology import remove_small_objects
 import logging
+from pathlib import Path
+import tempfile
+import atexit
 
-AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA','..')
+DEFAULT_AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA', '..')
+
+
+def prepare_automorph_data(image_folder, result_folder):
+
+    image_path = Path(image_folder).expanduser().resolve()
+    result_path = Path(result_folder).expanduser().resolve()
+
+    image_path.mkdir(parents=True, exist_ok=True)
+    result_path.mkdir(parents=True, exist_ok=True)
+
+    if (
+        image_path.name.lower() == 'images'
+        and result_path.name.lower() == 'results'
+        and image_path.parent == result_path.parent
+    ):
+        return str(image_path.parent)
+
+    temp_dir = Path(tempfile.mkdtemp(prefix='automorph_data_'))
+    atexit.register(shutil.rmtree, temp_dir, ignore_errors=True)
+
+    images_link = temp_dir / 'images'
+    results_link = temp_dir / 'Results'
+    if not images_link.exists():
+        images_link.symlink_to(image_path, target_is_directory=True)
+    if not results_link.exists():
+        results_link.symlink_to(result_path, target_is_directory=True)
+
+    resolution_link = temp_dir / 'resolution_information.csv'
+    for candidate in (
+        image_path.parent / 'resolution_information.csv',
+        result_path.parent / 'resolution_information.csv',
+    ):
+        if candidate.exists() and not resolution_link.exists():
+            resolution_link.symlink_to(candidate)
+            break
+
+    return str(temp_dir)
+
+
+AUTOMORPH_DATA = DEFAULT_AUTOMORPH_DATA
 
 # argument parsing
 parser = argparse.ArgumentParser()
@@ -30,6 +73,10 @@ parser.add_argument('--config_file', type=str, default=None,
 parser.add_argument('--im_size', help='delimited list input, could be 600,400', type=str, default='512')
 parser.add_argument('--device', type=str, default='cuda:0', help='where to run the training code (e.g. "cpu" or "cuda:0") [default: %(default)s]')
 parser.add_argument('--results_path', type=str, default='results', help='path to save predictions (defaults to results')
+parser.add_argument('--image_folder', type=str, default=str(Path(DEFAULT_AUTOMORPH_DATA) / 'images'),
+                    help='Path to the folder containing input images')
+parser.add_argument('--result_folder', type=str, default=str(Path(DEFAULT_AUTOMORPH_DATA) / 'Results'),
+                    help='Path to the AutoMorph results folder')
 
 
 def intersection(mask,vessel_, it_x, it_y):
@@ -615,9 +662,11 @@ def prediction_eval(model_1,model_2,model_3,model_4,model_5,model_6,model_7,mode
 
 
 if __name__ == '__main__':
-    
+
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     args = parser.parse_args()
+    AUTOMORPH_DATA = prepare_automorph_data(args.image_folder, args.result_folder)
+    os.environ['AUTOMORPH_DATA'] = AUTOMORPH_DATA
     results_path = args.results_path
     # Check if CUDA is available
     if torch.cuda.is_available():
