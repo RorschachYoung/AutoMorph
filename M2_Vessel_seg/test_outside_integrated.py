@@ -16,8 +16,51 @@ from skimage.morphology import skeletonize,remove_small_objects
 from skimage import io
 from FD_cal import fractal_dimension,vessel_density
 import shutil
+from pathlib import Path
+import tempfile
+import atexit
 
-AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA','..')
+DEFAULT_AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA', '..')
+
+
+def prepare_automorph_data(image_folder, result_folder):
+
+    image_path = Path(image_folder).expanduser().resolve()
+    result_path = Path(result_folder).expanduser().resolve()
+
+    image_path.mkdir(parents=True, exist_ok=True)
+    result_path.mkdir(parents=True, exist_ok=True)
+
+    if (
+        image_path.name.lower() == 'images'
+        and result_path.name.lower() == 'results'
+        and image_path.parent == result_path.parent
+    ):
+        return str(image_path.parent)
+
+    temp_dir = Path(tempfile.mkdtemp(prefix='automorph_data_'))
+    atexit.register(shutil.rmtree, temp_dir, ignore_errors=True)
+
+    images_link = temp_dir / 'images'
+    results_link = temp_dir / 'Results'
+    if not images_link.exists():
+        images_link.symlink_to(image_path, target_is_directory=True)
+    if not results_link.exists():
+        results_link.symlink_to(result_path, target_is_directory=True)
+
+    resolution_link = temp_dir / 'resolution_information.csv'
+    for candidate in (
+        image_path.parent / 'resolution_information.csv',
+        result_path.parent / 'resolution_information.csv',
+    ):
+        if candidate.exists() and not resolution_link.exists():
+            resolution_link.symlink_to(candidate)
+            break
+
+    return str(temp_dir)
+
+
+AUTOMORPH_DATA = DEFAULT_AUTOMORPH_DATA
 
 def filter_frag(data_path):
     if os.path.isdir(data_path + 'resize_binary/.ipynb_checkpoints'):
@@ -267,9 +310,23 @@ def get_args():
     parser.add_argument('--validation_ratio', type=float, default=10.0, help='Percent of the data that is used as validation 0-100', dest='val')
     parser.add_argument('--uniform', type=str, default='False', help='whether to uniform the image size', dest='uniform')
     parser.add_argument('--out_test', type=str, default='False', help='whether to uniform the image size', dest='data_path')
-    
+    parser.add_argument(
+        '--image_folder',
+        type=str,
+        default=str(Path(DEFAULT_AUTOMORPH_DATA) / 'images'),
+        help='Path to the folder containing input images',
+        dest='image_folder'
+    )
+    parser.add_argument(
+        '--result_folder',
+        type=str,
+        default=str(Path(DEFAULT_AUTOMORPH_DATA) / 'Results'),
+        help='Path to the AutoMorph results folder',
+        dest='result_folder'
+    )
+
     ####################### Loss weights ################################
-    
+
     parser.add_argument('--alpha', type=float, default=0.08, help='Loss weight of Adversarial Loss', dest='alpha')
     parser.add_argument('--beta', type=float, default=1.1, help='Loss weight of segmentation cross entropy', dest='beta')
     parser.add_argument('--gamma', type=float, default=0.5, help='Loss weight of segmentation mean square error', dest='gamma')
@@ -278,9 +335,11 @@ def get_args():
 
 
 if __name__ == '__main__':
-    
+
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     args = get_args()
+    AUTOMORPH_DATA = prepare_automorph_data(args.image_folder, args.result_folder)
+    os.environ['AUTOMORPH_DATA'] = AUTOMORPH_DATA
     # Check if CUDA is available
     if torch.cuda.is_available():
         logging.info("CUDA is available. Using CUDA...")
