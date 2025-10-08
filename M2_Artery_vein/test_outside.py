@@ -4,6 +4,7 @@ import argparse
 import logging
 import shutil
 import os
+import sys
 import cv2
 import torchvision
 import torch
@@ -19,8 +20,15 @@ from skimage import io
 from scripts.utils import Define_image_size
 from FD_cal import fractal_dimension,vessel_density
 from skimage.morphology import skeletonize,remove_small_objects
+from pathlib import Path
 
-AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA','..')
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from automorph_paths import prepare_automorph_data
+
+DEFAULT_AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA', '..')
+
+
+AUTOMORPH_DATA = DEFAULT_AUTOMORPH_DATA
 
 def filter_frag(data_path):
     if os.path.isdir(data_path + 'raw/.ipynb_checkpoints'):
@@ -269,14 +277,30 @@ def get_args():
     parser.add_argument('--dataset', type=str, help='test dataset name', dest='dataset')
     parser.add_argument('--checkstart', type=int, help='test dataset name', dest='CS')
     parser.add_argument('--uniform', type=str, default='False', help='whether to uniform the image size', dest='uniform')
+    parser.add_argument(
+        '--image_folder',
+        type=str,
+        default=str(Path(DEFAULT_AUTOMORPH_DATA) / 'images'),
+        help='Path to the folder containing input images',
+        dest='image_folder'
+    )
+    parser.add_argument(
+        '--result_folder',
+        type=str,
+        default=str(Path(DEFAULT_AUTOMORPH_DATA) / 'Results'),
+        help='Path to the AutoMorph results folder',
+        dest='result_folder'
+    )
 
     return parser.parse_args()
 
 
 if __name__ == '__main__':
-    
+
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     args = get_args()
+    AUTOMORPH_DATA, _ = prepare_automorph_data(args.image_folder, args.result_folder)
+    os.environ['AUTOMORPH_DATA'] = AUTOMORPH_DATA
     # Check if CUDA is available
     if torch.cuda.is_available():
         logging.info("CUDA is available. Using CUDA...")

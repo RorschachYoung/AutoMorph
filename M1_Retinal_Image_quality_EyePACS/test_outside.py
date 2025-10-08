@@ -12,8 +12,15 @@ from tqdm import tqdm
 from dataset import BasicDataset_OUT
 from torch.utils.data import DataLoader
 from model import Resnet101_fl, InceptionV3_fl, Densenet161_fl, Resnext101_32x8d_fl, MobilenetV2_fl, Vgg16_bn_fl, Efficientnet_fl
+from pathlib import Path
 
-AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA','..')
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from automorph_paths import prepare_automorph_data
+
+DEFAULT_AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA', '..')
+
+
+AUTOMORPH_DATA = DEFAULT_AUTOMORPH_DATA
 
 def test_net(model_fl_1,
             model_fl_2,
@@ -157,21 +164,38 @@ def get_args():
                         help='dataset name')
     parser.add_argument( '-t', '--task_name', dest='task', type=str,
                         help='The task name')
-    parser.add_argument( '-r', '--round', dest='round', type=int, 
-                        help='Number of round') 
-    parser.add_argument( '-m', '--model', dest='model', type=str, 
-                        help='Backbone of the model')     
+    parser.add_argument( '-r', '--round', dest='round', type=int,
+                        help='Number of round')
+    parser.add_argument( '-m', '--model', dest='model', type=str,
+                        help='Backbone of the model')
     parser.add_argument('--seed_num', type=int, default=42, help='Validation split seed', dest='seed')
-    parser.add_argument('--local_rank', default=0, type=int) 
+    parser.add_argument('--local_rank', default=0, type=int)
+    parser.add_argument(
+        '--image_folder',
+        type=str,
+        default=str(Path(DEFAULT_AUTOMORPH_DATA) / 'images'),
+        help='Path to the folder containing input images',
+        dest='image_folder'
+    )
+    parser.add_argument(
+        '--result_folder',
+        type=str,
+        default=str(Path(DEFAULT_AUTOMORPH_DATA) / 'Results'),
+        help='Path to the AutoMorph results folder',
+        dest='result_folder'
+    )
 
     return parser.parse_args()
 
 
 if __name__ == '__main__':
-    
+
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     args = get_args()
-    
+
+    AUTOMORPH_DATA, _ = prepare_automorph_data(args.image_folder, args.result_folder)
+    os.environ['AUTOMORPH_DATA'] = AUTOMORPH_DATA
+
 
     # Check if CUDA is available
     if torch.cuda.is_available():

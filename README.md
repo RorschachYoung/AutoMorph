@@ -44,6 +44,22 @@ Use the Google Colab and a free Tesla T4 gpu [Colab link click](https://colab.re
 
 Install and use on your own machines [LOCAL.md](LOCAL.md).
 
+#### `run.sh` quick start (custom paths)
+
+The pipeline entrypoint accepts optional flags for the image source and output
+directories. After preparing your Python environment as documented in
+`LOCAL.md`, run:
+
+```bash
+sh run.sh --image_folder=/absolute/path/to/images --result_folder=/absolute/path/to/results
+```
+
+Both arguments also work with relative paths. When you omit them the script
+falls back to `./images` and `./Results`, or `${AUTOMORPH_DATA}/images` and
+`${AUTOMORPH_DATA}/Results` if you have the `AUTOMORPH_DATA` environment
+variable defined. Add `--help` to see every available toggle (including the
+stage-specific `--no_*` switches).
+
 
 ### Running with Docker
 
