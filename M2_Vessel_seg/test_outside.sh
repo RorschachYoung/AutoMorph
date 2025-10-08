@@ -1,7 +1,18 @@
 #This is sh file for SEGAN
 
+IMAGE_FOLDER=${1:-${AUTOMORPH_IMAGE_FOLDER}}
+RESULT_FOLDER=${2:-${AUTOMORPH_RESULT_FOLDER}}
+
 if [ -z "${AUTOMORPH_DATA}" ]; then
   AUTOMORPH_DATA=".."
+fi
+
+if [ -z "${IMAGE_FOLDER}" ]; then
+  IMAGE_FOLDER="${AUTOMORPH_DATA}/images"
+fi
+
+if [ -z "${RESULT_FOLDER}" ]; then
+  RESULT_FOLDER="${AUTOMORPH_DATA}/Results"
 fi
 
 # define your job name
@@ -32,7 +43,9 @@ CUDA_VISIBLE_DEVICES=${gpu_id} python test_outside_integrated.py --epochs=1 \
                                                 --train_test_mode='test' \
                                                 --pre_threshold=40.0 \
                                                 --seed_num=${seed_number} \
-                                                --out_test="${AUTOMORPH_DATA}/Results/M2/binary_vessel/"
+                                                --out_test="${RESULT_FOLDER}/M2/binary_vessel/" \
+                                                --image_folder="${IMAGE_FOLDER}" \
+                                                --result_folder="${RESULT_FOLDER}"
                                                 
                                         
 
