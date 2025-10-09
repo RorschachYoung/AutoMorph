@@ -130,9 +130,22 @@ AV_WORKER_ARG="${NUM_WORKERS}"
 python automorph_data.py
 
 mkdir -p "${RESULT_FOLDER}"
-rm -rf "${RESULT_FOLDER}"/*
 
 mkdir -p "${IMAGE_FOLDER}"
+
+clean_stage_paths() {
+  if [ $# -eq 0 ]; then
+    return 0
+  fi
+
+  for relative_path in "$@"; do
+    local target="${RESULT_FOLDER}/${relative_path}"
+    if [ -e "${target}" ]; then
+      echo "Cleaning ${target}"
+      rm -rf "${target}"
+    fi
+  done
+}
 
 RESOLUTION_FILE=$(python generate_resolution.py --image_folder "${IMAGE_FOLDER}" --result_folder "${RESULT_FOLDER}")
 export AUTOMORPH_RESOLUTION_FILE="${RESOLUTION_FILE}"
@@ -141,6 +154,7 @@ export AUTOMORPH_RESOLUTION_FILE="${RESOLUTION_FILE}"
 # Step 1 - Image Preprocessing
 # ----------------------------- #
 if [ $NO_PROCESS -eq 0 ]; then
+  clean_stage_paths "M0"
   echo "### Preprocess Start ###"
   cd M0_Preprocess
   python EyeQ_process_main.py --image_folder "${IMAGE_FOLDER}" --result_folder "${RESULT_FOLDER}"
@@ -153,6 +167,7 @@ fi
 # Step 2 - Image Quality Assessment
 # ----------------------------- #
 if [ $NO_QUALITY -eq 0 ]; then
+  clean_stage_paths "M1"
   echo "### Image Quality Assessment ###"
   cd M1_Retinal_Image_quality_EyePACS
   sh test_outside.sh "${IMAGE_FOLDER}" "${RESULT_FOLDER}" "${QUALITY_BATCH_ARG}" "${QUALITY_WORKER_ARG}"
@@ -166,6 +181,7 @@ fi
 # Step 3 - Segmentation Modules
 # ----------------------------- #
 if [ $NO_SEGMENTATION -eq 0 ]; then
+  clean_stage_paths "M2"
   echo "### Segmentation Modules ###"
 
   cd M2_Vessel_seg
@@ -187,6 +203,7 @@ fi
 # Step 4 - Feature Measurement
 # ----------------------------- #
 if [ $NO_FEATURE -eq 0 ]; then
+  clean_stage_paths "M3"
   echo "### Feature Measuring ###"
 
   cd M3_feature_zone/retipy/
