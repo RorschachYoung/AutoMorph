@@ -147,6 +147,40 @@ clean_stage_paths() {
   done
 }
 
+clean_feature_outputs() {
+  local base_dir="${RESULT_FOLDER}/M3"
+  local -a feature_dirs=(
+    "Disc_centred/Width"
+    "Macular_centred/Width"
+  )
+  local -a feature_files=(
+    "Disc_centred/Disc_Measurement.csv"
+    "Disc_centred/Disc_Zone_B_Measurement.csv"
+    "Disc_centred/Disc_Zone_C_Measurement.csv"
+    "Macular_centred/Macular_Measurement.csv"
+    "Macular_centred/Macular_Zone_B_Measurement.csv"
+    "Macular_centred/Macular_Zone_C_Measurement.csv"
+    "Disc_Features.csv"
+    "Macular_Features.csv"
+  )
+
+  for relative_path in "${feature_dirs[@]}"; do
+    local target="${base_dir}/${relative_path}"
+    if [ -d "${target}" ]; then
+      echo "Cleaning ${target}"
+      rm -rf "${target}"
+    fi
+  done
+
+  for relative_path in "${feature_files[@]}"; do
+    local target="${base_dir}/${relative_path}"
+    if [ -f "${target}" ]; then
+      echo "Removing ${target}"
+      rm -f "${target}"
+    fi
+  done
+}
+
 RESOLUTION_FILE=$(python generate_resolution.py --image_folder "${IMAGE_FOLDER}" --result_folder "${RESULT_FOLDER}")
 export AUTOMORPH_RESOLUTION_FILE="${RESOLUTION_FILE}"
 
@@ -203,7 +237,7 @@ fi
 # Step 4 - Feature Measurement
 # ----------------------------- #
 if [ $NO_FEATURE -eq 0 ]; then
-  clean_stage_paths "M3"
+  clean_feature_outputs
   echo "### Feature Measuring ###"
 
   cd M3_feature_zone/retipy/
