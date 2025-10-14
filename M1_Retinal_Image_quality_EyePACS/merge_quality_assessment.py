@@ -1,18 +1,32 @@
+import argparse
+import os
+import shutil
+
 import numpy as np
 import pandas as pd
-import shutil
-import os
 
-AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA','..')
 
-result_Eyepacs = f'{AUTOMORPH_DATA}/Results/M1/results_ensemble.csv'
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description='Split quality assessment results into good/bad folders.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument('--image_folder', type=str, default=None,
+                        help='Original image directory (unused for this step).')
+    parser.add_argument('--result_folder', type=str, required=True,
+                        help='Root directory for AutoMorph results.')
+    args = parser.parse_args()
 
-if not os.path.exists(f'{AUTOMORPH_DATA}/Results/M1/Good_quality/'):
-    os.makedirs(f'{AUTOMORPH_DATA}/Results/M1/Good_quality/')
-if not os.path.exists(f'{AUTOMORPH_DATA}/Results/M1/Bad_quality/'):
-    os.makedirs(f'{AUTOMORPH_DATA}/Results/M1/Bad_quality/')
+    result_folder = os.path.abspath(args.result_folder)
 
-result_Eyepacs_ = pd.read_csv(result_Eyepacs)
+    result_Eyepacs = os.path.join(result_folder, 'M1', 'results_ensemble.csv')
+
+    good_dir = os.path.join(result_folder, 'M1', 'Good_quality')
+    bad_dir = os.path.join(result_folder, 'M1', 'Bad_quality')
+    os.makedirs(good_dir, exist_ok=True)
+    os.makedirs(bad_dir, exist_ok=True)
+
+    result_Eyepacs_ = pd.read_csv(result_Eyepacs)
 
 Eyepacs_pre = result_Eyepacs_['Prediction']
 Eyepacs_bad_mean = result_Eyepacs_['softmax_bad']
@@ -26,16 +40,20 @@ for i in range(len(name_list)):
     
     if Eyepacs_pre[i]==0:
         Eye_good+=1
-        shutil.copy(name_list[i], f'{AUTOMORPH_DATA}/Results/M1/Good_quality/')
+        shutil.copy(name_list[i], good_dir)
     elif (Eyepacs_pre[i]==1) and (Eyepacs_bad_mean[i]<0.25):
     #elif (Eyepacs_pre[i]==1) and (Eyepacs_bad_mean[i]<0.25) and (Eyepacs_usable_sd[i]<0.1):
         Eye_good+=1
-        shutil.copy(name_list[i], f'{AUTOMORPH_DATA}/Results/M1/Good_quality/')        
+        shutil.copy(name_list[i], good_dir)
     else:
-        Eye_bad+=1        
-        shutil.copy(name_list[i], f'{AUTOMORPH_DATA}/Results/M1/Bad_quality/')
+        Eye_bad+=1
+        shutil.copy(name_list[i], bad_dir)
         #shutil.copy(name_list[i], '../Results/M1/Good_quality/')
 
 
-print('Gradable cases by EyePACS_QA is {} '.format(Eye_good))
-print('Ungradable cases by EyePACS_QA is {} '.format(Eye_bad))
+    print('Gradable cases by EyePACS_QA is {} '.format(Eye_good))
+    print('Ungradable cases by EyePACS_QA is {} '.format(Eye_bad))
+
+
+if __name__ == '__main__':
+    main()

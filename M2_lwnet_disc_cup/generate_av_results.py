@@ -30,6 +30,10 @@ parser.add_argument('--config_file', type=str, default=None,
 parser.add_argument('--im_size', help='delimited list input, could be 600,400', type=str, default='512')
 parser.add_argument('--device', type=str, default='cuda:0', help='where to run the training code (e.g. "cpu" or "cuda:0") [default: %(default)s]')
 parser.add_argument('--results_path', type=str, default='results', help='path to save predictions (defaults to results')
+parser.add_argument('--image_folder', type=str, default=None,
+                    help='Original image directory (unused for this stage).')
+parser.add_argument('--result_folder', type=str, default=None,
+                    help='Root directory for AutoMorph results.')
 
 
 def intersection(mask,vessel_, it_x, it_y):
@@ -618,6 +622,10 @@ if __name__ == '__main__':
     
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     args = parser.parse_args()
+    if args.result_folder:
+        os.environ['AUTOMORPH_RESULT_FOLDER'] = os.path.abspath(args.result_folder)
+    if args.image_folder:
+        os.environ['AUTOMORPH_IMAGE_FOLDER'] = os.path.abspath(args.image_folder)
     results_path = args.results_path
     # Check if CUDA is available
     if torch.cuda.is_available():

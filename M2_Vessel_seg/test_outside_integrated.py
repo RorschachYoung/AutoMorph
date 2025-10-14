@@ -267,6 +267,10 @@ def get_args():
     parser.add_argument('--validation_ratio', type=float, default=10.0, help='Percent of the data that is used as validation 0-100', dest='val')
     parser.add_argument('--uniform', type=str, default='False', help='whether to uniform the image size', dest='uniform')
     parser.add_argument('--out_test', type=str, default='False', help='whether to uniform the image size', dest='data_path')
+    parser.add_argument('--image_folder', type=str, default=None,
+                        help='Original image directory (unused in this stage).')
+    parser.add_argument('--result_folder', type=str, default=None,
+                        help='Root directory for AutoMorph results.')
     
     ####################### Loss weights ################################
     
@@ -281,6 +285,10 @@ if __name__ == '__main__':
     
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     args = get_args()
+    if args.result_folder:
+        os.environ['AUTOMORPH_RESULT_FOLDER'] = os.path.abspath(args.result_folder)
+    if args.image_folder:
+        os.environ['AUTOMORPH_IMAGE_FOLDER'] = os.path.abspath(args.image_folder)
     # Check if CUDA is available
     if torch.cuda.is_available():
         logging.info("CUDA is available. Using CUDA...")

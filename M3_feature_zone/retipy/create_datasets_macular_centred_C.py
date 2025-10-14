@@ -54,7 +54,16 @@ parser.add_argument(
     "--configuration",
     help="the configuration file location",
     default="resources/retipy.config")
+parser.add_argument('--image_folder', type=str, default=None,
+                    help='Original image directory (unused for this stage).')
+parser.add_argument('--result_folder', type=str, default=None,
+                    help='Root directory for AutoMorph results.')
 args = parser.parse_args()
+
+if args.result_folder:
+    os.environ['AUTOMORPH_RESULT_FOLDER'] = os.path.abspath(args.result_folder)
+if args.image_folder:
+    os.environ['AUTOMORPH_IMAGE_FOLDER'] = os.path.abspath(args.image_folder)
 
 CONFIG = configuration.Configuration(args.configuration)
 binary_FD_binary,binary_VD_binary,binary_Average_width,binary_t2_list,binary_t4_list,binary_t5_list = [],[],[],[],[],[]
