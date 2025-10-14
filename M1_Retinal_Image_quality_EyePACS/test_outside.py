@@ -4,31 +4,41 @@ import logging
 import os
 import sys
 import time
-import torch
+
 import numpy as np
 import pandas as pd
+import torch
 import torch.nn as nn
 from tqdm import tqdm
+
 from dataset import BasicDataset_OUT
 from torch.utils.data import DataLoader
-from model import Resnet101_fl, InceptionV3_fl, Densenet161_fl, Resnext101_32x8d_fl, MobilenetV2_fl, Vgg16_bn_fl, Efficientnet_fl
+from model import (
+    Densenet161_fl,
+    Efficientnet_fl,
+    InceptionV3_fl,
+    MobilenetV2_fl,
+    Resnet101_fl,
+    Resnext101_32x8d_fl,
+    Vgg16_bn_fl,
+)
 
-AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA','..')
-
-def test_net(model_fl_1,
-            model_fl_2,
-            model_fl_3,
-            model_fl_4,
-            model_fl_5,
-            model_fl_6,
-            model_fl_7,
-            model_fl_8,
-              test_dir,
-              device,
-              epochs=5,
-              batch_size=20,
-              image_size=(512,512),
-              ):
+def test_net(
+        model_fl_1,
+        model_fl_2,
+        model_fl_3,
+        model_fl_4,
+        model_fl_5,
+        model_fl_6,
+        model_fl_7,
+        model_fl_8,
+        test_dir,
+        device,
+        result_folder,
+        epochs=5,
+        batch_size=20,
+        image_size=(512,512),
+        ):
 
     storage_path ="Ensemble_exp_{}/{}/train_on_{}/test_on_{}/".format(args.task, args.load, args.model, args.dataset)
     n_classes = args.n_class
@@ -132,9 +142,9 @@ def test_net(model_fl_1,
         
     Data4stage2 = pd.DataFrame({'Name':filename_list, 'softmax_good':np.array(prediction_list_mean)[:,0],'softmax_usable':np.array(prediction_list_mean)[:,1],'softmax_bad':np.array(prediction_list_mean)[:,2], 'good_sd':np.array(prediction_list_std)[:,0],'usable_sd':np.array(prediction_list_std)[:,1],'bad_sd':np.array(prediction_list_std)[:,2], 'Prediction': prediction_decode_list})
 
-    if not os.path.exists(f'{AUTOMORPH_DATA}/Results/M1'):
-        os.makedirs(f'{AUTOMORPH_DATA}/Results/M1')
-    Data4stage2.to_csv(f'{AUTOMORPH_DATA}/Results/M1/results_ensemble.csv', index = None, encoding='utf8')
+    m1_dir = os.path.join(result_folder, 'M1')
+    os.makedirs(m1_dir, exist_ok=True)
+    Data4stage2.to_csv(os.path.join(m1_dir, 'results_ensemble.csv'), index=None, encoding='utf8')
 
 
 
@@ -157,12 +167,16 @@ def get_args():
                         help='dataset name')
     parser.add_argument( '-t', '--task_name', dest='task', type=str,
                         help='The task name')
-    parser.add_argument( '-r', '--round', dest='round', type=int, 
-                        help='Number of round') 
-    parser.add_argument( '-m', '--model', dest='model', type=str, 
-                        help='Backbone of the model')     
+    parser.add_argument( '-r', '--round', dest='round', type=int,
+                        help='Number of round')
+    parser.add_argument( '-m', '--model', dest='model', type=str,
+                        help='Backbone of the model')
     parser.add_argument('--seed_num', type=int, default=42, help='Validation split seed', dest='seed')
-    parser.add_argument('--local_rank', default=0, type=int) 
+    parser.add_argument('--local_rank', default=0, type=int)
+    parser.add_argument('--image_folder', type=str, default=None,
+                        help='Original image directory (unused for this stage).')
+    parser.add_argument('--result_folder', type=str, required=True,
+                        help='Root directory for AutoMorph results.')
 
     return parser.parse_args()
 
@@ -186,7 +200,8 @@ if __name__ == '__main__':
 
     logging.info(f'Using device {device}')
 
-    test_dir = args.test_dir
+    test_dir = os.path.abspath(args.test_dir)
+    result_folder = os.path.abspath(args.result_folder)
     dataset=args.dataset
     img_size= (512,512)
 
@@ -275,6 +290,7 @@ if __name__ == '__main__':
                  model_fl_8,
                   test_dir,
                   device=device,
+                  result_folder=result_folder,
                   epochs=args.epochs,
                   batch_size=args.batchsize,
                   image_size=img_size)
