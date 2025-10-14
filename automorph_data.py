@@ -1,20 +1,51 @@
-"""
-Check if environment variable AUTOMORPH_DATA is set.
-If yes, creates all sub-folders required for the project.
+"""Utility helpers for preparing the AutoMorph working directories."""
 
-AUTOMORPH_DATA allows to move all data files away from code base and keep the code base clean.
-Plus, it can be used to keep data on writable storage - while code base can be on read-only storage.
-"""
+import argparse
 import os
 import shutil
 
-if os.getenv('AUTOMORPH_DATA'):
-    data_path = os.getenv('AUTOMORPH_DATA')
-    print(f"Set {data_path} as AutoMorph output directory")
-    if not os.path.exists(data_path):
-        os.makedirs(data_path)
-    if not os.path.exists(os.path.join(data_path, 'images')):
-        os.makedirs(os.path.join(data_path, 'images'))   
-    if not os.path.exists(os.path.join(data_path, 'Results')):
-        os.makedirs(os.path.join(data_path, 'Results'))
+
+def _ensure_dir(path: str) -> None:
+    os.makedirs(path, exist_ok=True)
+
+
+def _ensure_symlink(target: str, link_path: str) -> None:
+    if os.path.islink(link_path):
+        existing_target = os.readlink(link_path)
+        if existing_target == target:
+            return
+        os.unlink(link_path)
+    elif os.path.exists(link_path):
+        if os.path.isdir(link_path):
+            shutil.rmtree(link_path)
+        else:
+            os.remove(link_path)
+    os.symlink(target, link_path)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description='Prepare AutoMorph runtime directories.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument('--image_folder', required=True, help='Directory containing the input images.')
+    parser.add_argument('--result_folder', required=True, help='Directory that stores AutoMorph outputs.')
+    parser.add_argument('--runtime_base', required=True, help='Temporary directory used to mimic legacy layout.')
+    args = parser.parse_args()
+
+    image_folder = os.path.abspath(args.image_folder)
+    result_folder = os.path.abspath(args.result_folder)
+    runtime_base = os.path.abspath(args.runtime_base)
+
+    _ensure_dir(result_folder)
+    for stage in ('M0', 'M1', 'M2', 'M3'):
+        _ensure_dir(os.path.join(result_folder, stage))
+
+    _ensure_dir(runtime_base)
+    _ensure_symlink(image_folder, os.path.join(runtime_base, 'images'))
+    _ensure_symlink(result_folder, os.path.join(runtime_base, 'Results'))
+
+
+if __name__ == '__main__':
+    main()
 

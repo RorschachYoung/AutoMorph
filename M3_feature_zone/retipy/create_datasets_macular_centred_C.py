@@ -33,18 +33,25 @@ import pandas as pd
 
 from retipy import configuration, retina, tortuosity_measures
 
-AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA','../..')
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_RUNTIME = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..'))
 
-if os.path.exists(f'{AUTOMORPH_DATA}/Results/M2/artery_vein/macular_Zone_C_centred_artery_skeleton/.ipynb_checkpoints'):
-    shutil.rmtree(f'{AUTOMORPH_DATA}/Results/M2/artery_vein/macular_Zone_C_centred_artery_skeleton/.ipynb_checkpoints') 
-if os.path.exists(f'{AUTOMORPH_DATA}/Results/M2/binary_vessel/macular_Zone_C_centred_vein_skeleton/.ipynb_checkpoints'):
-    shutil.rmtree(f'{AUTOMORPH_DATA}/Results/M2/binary_vessel/macular_Zone_C_centred_vein_skeleton/.ipynb_checkpoints') 
-if os.path.exists(f'{AUTOMORPH_DATA}/Results/M2/artery_vein/macular_Zone_C_centred_binary_skeleton/.ipynb_checkpoints'):
-    shutil.rmtree(f'{AUTOMORPH_DATA}/Results/M2/artery_vein/macular_Zone_C_centred_binary_skeleton/.ipynb_checkpoints')
-if not os.path.exists(f'{AUTOMORPH_DATA}/Results/M3/Macular_centred/Width/'):
-    os.makedirs(f'{AUTOMORPH_DATA}/Results/M3/Macular_centred/Width/')
-#if os.path.exists('./DDR/av_seg/raw/.ipynb_checkpoints'):
-#    shutil.rmtree('./DDR/av_seg/raw/.ipynb_checkpoints') 
+
+def _resolve_roots():
+    runtime_root = os.path.abspath(os.getenv('AUTOMORPH_DATA', DEFAULT_RUNTIME))
+    result_root = os.getenv('AUTOMORPH_RESULT_FOLDER')
+    if result_root is None:
+        result_root = os.path.join(runtime_root, 'Results')
+    return runtime_root, os.path.abspath(result_root)
+
+
+def _remove_checkpoint(directory: str) -> None:
+    checkpoint = os.path.join(directory, '.ipynb_checkpoints')
+    if os.path.exists(checkpoint):
+        shutil.rmtree(checkpoint)
+
+
+RUNTIME_ROOT, RESULT_ROOT = _resolve_roots()
 
 
 parser = argparse.ArgumentParser()
@@ -54,7 +61,27 @@ parser.add_argument(
     "--configuration",
     help="the configuration file location",
     default="resources/retipy.config")
+parser.add_argument('--image_folder', type=str, default=None,
+                    help='Original image directory (unused for this stage).')
+parser.add_argument('--result_folder', type=str, default=None,
+                    help='Root directory for AutoMorph results.')
 args = parser.parse_args()
+
+if args.result_folder:
+    os.environ['AUTOMORPH_RESULT_FOLDER'] = os.path.abspath(args.result_folder)
+if args.image_folder:
+    os.environ['AUTOMORPH_IMAGE_FOLDER'] = os.path.abspath(args.image_folder)
+
+
+RUNTIME_ROOT, RESULT_ROOT = _resolve_roots()
+_remove_checkpoint(os.path.join(RESULT_ROOT, 'M2', 'artery_vein', 'macular_Zone_C_centred_artery_skeleton'))
+_remove_checkpoint(os.path.join(RESULT_ROOT, 'M2', 'binary_vessel', 'macular_Zone_C_centred_vein_skeleton'))
+_remove_checkpoint(os.path.join(RESULT_ROOT, 'M2', 'artery_vein', 'macular_Zone_C_centred_binary_skeleton'))
+os.makedirs(os.path.join(RESULT_ROOT, 'M3', 'Macular_centred', 'Width'), exist_ok=True)
+
+#if os.path.exists('./DDR/av_seg/raw/.ipynb_checkpoints'):
+#    shutil.rmtree('./DDR/av_seg/raw/.ipynb_checkpoints')
+
 
 CONFIG = configuration.Configuration(args.configuration)
 binary_FD_binary,binary_VD_binary,binary_Average_width,binary_t2_list,binary_t4_list,binary_t5_list = [],[],[],[],[],[]
@@ -70,21 +97,21 @@ name_binary_list = []
 name_artery_list = []
 name_vein_list = []
 
-Artery_PATH = f'{AUTOMORPH_DATA}/Results/M2/artery_vein/macular_Zone_C_centred_artery_skeleton'
-Vein_PATH = f'{AUTOMORPH_DATA}/Results/M2/artery_vein/macular_Zone_C_centred_vein_skeleton'
-Binary_PATH = f'{AUTOMORPH_DATA}/Results/M2/binary_vessel/macular_Zone_C_centred_binary_skeleton'
+Artery_PATH = os.path.join(RESULT_ROOT, 'M2', 'artery_vein', 'macular_Zone_C_centred_artery_skeleton')
+Vein_PATH = os.path.join(RESULT_ROOT, 'M2', 'artery_vein', 'macular_Zone_C_centred_vein_skeleton')
+Binary_PATH = os.path.join(RESULT_ROOT, 'M2', 'binary_vessel', 'macular_Zone_C_centred_binary_skeleton')
 
 for filename in sorted(glob.glob(os.path.join(Binary_PATH, '*.png'))):
     
     try:
-        segmentedImage = retina.Retina(None, filename, store_path=f'{AUTOMORPH_DATA}/Results/M2/binary_vessel/macular_Zone_C_centred_binary_process')
+        segmentedImage = retina.Retina(None, filename, store_path=os.path.join(RESULT_ROOT, 'M2', 'binary_vessel', 'macular_Zone_C_centred_binary_process'))
         #segmentedImage.threshold_image()
         #segmentedImage.reshape_square()
         #window_sizes = segmentedImage.get_window_sizes()
         window_sizes = [912]
         window = retina.Window(
             segmentedImage, window_sizes[-1], min_pixels=CONFIG.pixels_per_window)
-        FD_binary,VD_binary,Average_width,t2, t4, td, vessel_count_list, w1_list, w1_list_average, _, _,_,_ = tortuosity_measures.evaluate_window(window, CONFIG.pixels_per_window, CONFIG.sampling_size, CONFIG.r_2_threshold,store_path=f'{AUTOMORPH_DATA}/Results/M2/binary_vessel/macular_Zone_C_centred_binary_process/')
+        FD_binary,VD_binary,Average_width,t2, t4, td, vessel_count_list, w1_list, w1_list_average, _, _,_,_ = tortuosity_measures.evaluate_window(window, CONFIG.pixels_per_window, CONFIG.sampling_size, CONFIG.r_2_threshold,store_path=os.path.join(RESULT_ROOT, 'M2', 'binary_vessel', 'macular_Zone_C_centred_binary_process'))
         #print(window.tags)
         binary_t2_list.append(t2)
         binary_t4_list.append(t4)
@@ -108,11 +135,11 @@ for filename in sorted(glob.glob(os.path.join(Binary_PATH, '*.png'))):
 for filename in sorted(glob.glob(os.path.join(Artery_PATH, '*.png'))):
 
     try:
-        segmentedImage = retina.Retina(None, filename,store_path=f'{AUTOMORPH_DATA}/Results/M2/artery_vein/macular_Zone_C_centred_artery_process')
+        segmentedImage = retina.Retina(None, filename,store_path=os.path.join(RESULT_ROOT, 'M2', 'artery_vein', 'macular_Zone_C_centred_artery_process'))
         window_sizes = [912]
         window = retina.Window(
             segmentedImage, window_sizes[-1], min_pixels=CONFIG.pixels_per_window)
-        FD_binary,VD_binary,Average_width,t2, t4, td, vessel_count_list, w1_list, w1_list_average,CRAE_Hubbard, _,CRAE_Knudtson,_ = tortuosity_measures.evaluate_window(window, CONFIG.pixels_per_window, CONFIG.sampling_size, CONFIG.r_2_threshold,store_path=f'{AUTOMORPH_DATA}/Results/M2/artery_vein/macular_Zone_C_centred_artery_process/')
+        FD_binary,VD_binary,Average_width,t2, t4, td, vessel_count_list, w1_list, w1_list_average,CRAE_Hubbard, _,CRAE_Knudtson,_ = tortuosity_measures.evaluate_window(window, CONFIG.pixels_per_window, CONFIG.sampling_size, CONFIG.r_2_threshold,store_path=os.path.join(RESULT_ROOT, 'M2', 'artery_vein', 'macular_Zone_C_centred_artery_process'))
         #print(window.tags)
         artery_t2_list.append(t2)
         artery_t4_list.append(t4)
@@ -141,14 +168,14 @@ for filename in sorted(glob.glob(os.path.join(Artery_PATH, '*.png'))):
 for filename in sorted(glob.glob(os.path.join(Vein_PATH, '*.png'))):
 
     try:
-        segmentedImage = retina.Retina(None, filename,store_path=f'{AUTOMORPH_DATA}/Results/M2/artery_vein/macular_Zone_C_centred_vein_process')
+        segmentedImage = retina.Retina(None, filename,store_path=os.path.join(RESULT_ROOT, 'M2', 'artery_vein', 'macular_Zone_C_centred_vein_process'))
         #segmentedImage.threshold_image()
         #segmentedImage.reshape_square()
         #window_sizes = segmentedImage.get_window_sizes()
         window_sizes = [912]
         window = retina.Window(
             segmentedImage, window_sizes[-1], min_pixels=CONFIG.pixels_per_window)
-        FD_binary,VD_binary,Average_width,t2, t4, td, vessel_count_list, w1_list, w1_list_average,_, CRVE_Hubbard,_,CRVE_Knudtson = tortuosity_measures.evaluate_window(window, CONFIG.pixels_per_window, CONFIG.sampling_size, CONFIG.r_2_threshold,store_path=f'{AUTOMORPH_DATA}/Results/M2/artery_vein/macular_Zone_C_centred_vein_process/')
+        FD_binary,VD_binary,Average_width,t2, t4, td, vessel_count_list, w1_list, w1_list_average,_, CRVE_Hubbard,_,CRVE_Knudtson = tortuosity_measures.evaluate_window(window, CONFIG.pixels_per_window, CONFIG.sampling_size, CONFIG.r_2_threshold,store_path=os.path.join(RESULT_ROOT, 'M2', 'artery_vein', 'macular_Zone_C_centred_vein_process'))
         #print(window.tags)
         vein_t2_list.append(t2)
         vein_t4_list.append(t4)
@@ -174,7 +201,7 @@ for filename in sorted(glob.glob(os.path.join(Vein_PATH, '*.png'))):
 
 
 
-Disc_file = pd.read_csv(f"{AUTOMORPH_DATA}/Results/M3/Macular_centred/Disc_cup_results.csv").astype({"Name": "object"})
+Disc_file = pd.read_csv(os.path.join(RESULT_ROOT, 'M3', 'Macular_centred', 'Disc_cup_results.csv')).astype({"Name": "object"})
 
 Data4stage2_binary = pd.DataFrame(
     {
@@ -224,4 +251,4 @@ Data4stage2 = pd.merge(Disc_file_binary, artery_vein, how="outer", on=["Name"])
 Data4stage2['AVR_Hubbard'] = Data4stage2['CRAE_Hubbard']/Data4stage2['CRVE_Hubbard']
 Data4stage2['AVR_Knudtson'] = Data4stage2['CRAE_Knudtson']/Data4stage2['CRVE_Knudtson']
 
-Data4stage2.to_csv(f'{AUTOMORPH_DATA}/Results/M3/Macular_centred/Macular_Zone_C_Measurement.csv', index = None, encoding='utf8')
+Data4stage2.to_csv(os.path.join(RESULT_ROOT, 'M3', 'Macular_centred', 'Macular_Zone_C_Measurement.csv'), index=None, encoding='utf8')

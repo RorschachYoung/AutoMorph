@@ -1,15 +1,16 @@
-import numpy as np
-import torch
-from glob import glob
-from torch.utils.data import Dataset
-from PIL import Image
-import random
 import logging
-from scipy.ndimage import rotate
-from PIL import Image, ImageEnhance
-import pandas as pd
-from os.path import splitext
+import os
+import random
+from glob import glob
 from os import listdir
+from os.path import splitext
+
+import numpy as np
+import pandas as pd
+from PIL import Image, ImageEnhance
+from scipy.ndimage import rotate
+import torch
+from torch.utils.data import Dataset
 
 
 class BasicDataset(Dataset):
@@ -92,10 +93,10 @@ class BasicDataset_OUT(Dataset):
     def __init__(self, image_dir, image_size, n_classes, train_or):
         'Initialization'
         self.image_size = image_size
-        self.image_dir = image_dir
+        self.image_dir = os.path.join(image_dir, '')
         self.n_classes = n_classes
         self.train_or = train_or
-        
+
         self.ids = [splitext(file)[0] for file in sorted(listdir(image_dir))
                     if not file.startswith('.')]
         logging.info(f'Creating dataset with {len(self.ids)} examples')
@@ -128,7 +129,7 @@ class BasicDataset_OUT(Dataset):
     def __getitem__(self, index):
         
         idx = self.ids[index]
-        img_file = glob(self.image_dir + idx + '.*')
+        img_file = glob(os.path.join(self.image_dir, idx + '.*'))
         image = Image.open(img_file[0])
         image_processed = self.preprocess(image, self.image_size, self.train_or, index)
  
