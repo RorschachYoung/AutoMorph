@@ -91,6 +91,23 @@ delete_stage_artifacts() {
   fi
 }
 
+cleanup_feature_outputs() {
+  local stage_root="$1"
+  [ -d "$stage_root" ] || return 0
+
+  find "$stage_root" -mindepth 1 -maxdepth 1 -type d ! -name 'Disc_centred' ! -name 'Macular_centred' -exec rm -rf {} +
+
+  local disc_dir="${stage_root}/Disc_centred"
+  if [ -d "$disc_dir" ]; then
+    find "$disc_dir" -mindepth 1 -maxdepth 1 ! -name 'Disc_cup_results.csv' -exec rm -rf {} +
+  fi
+
+  local macular_dir="${stage_root}/Macular_centred"
+  if [ -d "$macular_dir" ]; then
+    find "$macular_dir" -mindepth 1 -maxdepth 1 ! -name 'Disc_cup_results.csv' -exec rm -rf {} +
+  fi
+}
+
 # ----------------------------- #
 # Step 1 - Image Preprocessing
 # ----------------------------- #
@@ -138,7 +155,7 @@ fi
 # ----------------------------- #
 if [ $NO_FEATURE -eq 0 ]; then
   echo "### Feature Measuring ###"
-  delete_stage_artifacts "${RESULT_FOLDER}/M3"
+  cleanup_feature_outputs "${RESULT_FOLDER}/M3"
 
   (cd M3_feature_zone/retipy/ && \
     python create_datasets_disc_centred_B.py --result_folder "$RESULT_FOLDER" --image_folder "$IMAGE_FOLDER" && \

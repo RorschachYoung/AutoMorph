@@ -33,20 +33,29 @@ import pandas as pd
 
 from retipy import configuration, retina, tortuosity_measures
 
-AUTOMORPH_DATA = os.getenv('AUTOMORPH_DATA','../..')
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_RUNTIME = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..'))
 
-if os.path.exists(f'{AUTOMORPH_DATA}/Results/M2/artery_vein/artery_binary_skeleton/.ipynb_checkpoints'):
-    shutil.rmtree(f'{AUTOMORPH_DATA}/Results/M2/artery_vein/artery_binary_skeleton/.ipynb_checkpoints') 
-if os.path.exists(f'{AUTOMORPH_DATA}/Results/M2/binary_vessel/binary_skeleton/.ipynb_checkpoints'):
-    shutil.rmtree(f'{AUTOMORPH_DATA}/Results/M2/binary_vessel/binary_skeleton/.ipynb_checkpoints') 
-if os.path.exists(f'{AUTOMORPH_DATA}/Results/M2/artery_vein/vein_binary_skeleton/.ipynb_checkpoints'):
-    shutil.rmtree(f'{AUTOMORPH_DATA}/Results/M2/artery_vein/vein_binary_skeleton/.ipynb_checkpoints')
-if not os.path.exists(f'{AUTOMORPH_DATA}/Results/M3/Disc_centred/Width/'):
-    os.makedirs(f'{AUTOMORPH_DATA}/Results/M3/Disc_centred/Width/')
 
-# if os.path.exists('./DDR/av_seg/raw/.ipynb_checkpoints'):
-#    shutil.rmtree('./DDR/av_seg/raw/.ipynb_checkpoints') 
+def _resolve_roots():
+    runtime_root = os.path.abspath(os.getenv('AUTOMORPH_DATA', DEFAULT_RUNTIME))
+    result_root = os.getenv('AUTOMORPH_RESULT_FOLDER')
+    if result_root is None:
+        result_root = os.path.join(runtime_root, 'Results')
+    return runtime_root, os.path.abspath(result_root)
 
+
+def _remove_checkpoint(directory: str) -> None:
+    checkpoint = os.path.join(directory, '.ipynb_checkpoints')
+    if os.path.exists(checkpoint):
+        shutil.rmtree(checkpoint)
+
+
+def _result_path(*parts: str) -> str:
+    return os.path.join(RESULT_ROOT, *parts)
+
+
+RUNTIME_ROOT, RESULT_ROOT = _resolve_roots()
 
 parser = argparse.ArgumentParser()
 
@@ -66,30 +75,41 @@ if args.result_folder:
 if args.image_folder:
     os.environ['AUTOMORPH_IMAGE_FOLDER'] = os.path.abspath(args.image_folder)
 
+RUNTIME_ROOT, RESULT_ROOT = _resolve_roots()
+_remove_checkpoint(_result_path('M2', 'artery_vein', 'artery_binary_skeleton'))
+_remove_checkpoint(_result_path('M2', 'binary_vessel', 'binary_skeleton'))
+_remove_checkpoint(_result_path('M2', 'artery_vein', 'vein_binary_skeleton'))
+os.makedirs(_result_path('M3', 'Disc_centred', 'Width'), exist_ok=True)
+
+# if os.path.exists('./DDR/av_seg/raw/.ipynb_checkpoints'):
+#     shutil.rmtree('./DDR/av_seg/raw/.ipynb_checkpoints')
+
 CONFIG = configuration.Configuration(args.configuration)
-binary_FD_binary,binary_VD_binary,binary_Average_width,binary_t2_list,binary_t4_list,binary_t5_list = [],[],[],[],[],[]
-artery_FD_binary,artery_VD_binary,artery_Average_width,artery_t2_list,artery_t4_list,artery_t5_list = [],[],[],[],[],[]
-vein_FD_binary,vein_VD_binary,vein_Average_width,vein_t2_list,vein_t4_list,vein_t5_list = [],[],[],[],[],[]
+binary_FD_binary, binary_VD_binary, binary_Average_width, binary_t2_list, binary_t4_list, binary_t5_list = [], [], [], [], [], []
+artery_FD_binary, artery_VD_binary, artery_Average_width, artery_t2_list, artery_t4_list, artery_t5_list = [], [], [], [], [], []
+vein_FD_binary, vein_VD_binary, vein_Average_width, vein_t2_list, vein_t4_list, vein_t5_list = [], [], [], [], [], []
 name_binary_list = []
 name_artery_list = []
 name_vein_list = []
 
-Artery_PATH = f'{AUTOMORPH_DATA}/Results/M2/artery_vein/disc_centred_artery_skeleton'
-Vein_PATH = f'{AUTOMORPH_DATA}/Results/M2/artery_vein/disc_centred_vein_skeleton'
-Binary_PATH = f'{AUTOMORPH_DATA}/Results/M2/binary_vessel/disc_centred_binary_skeleton'
+Artery_PATH = _result_path('M2', 'artery_vein', 'disc_centred_artery_skeleton')
+Vein_PATH = _result_path('M2', 'artery_vein', 'disc_centred_vein_skeleton')
+Binary_PATH = _result_path('M2', 'binary_vessel', 'disc_centred_binary_skeleton')
 
 for filename in sorted(glob.glob(os.path.join(Binary_PATH, '*.png'))):
-    
+
     try:
-        segmentedImage = retina.Retina(None, filename, store_path=f'{AUTOMORPH_DATA}/Results/M2/binary_vessel/disc_centred_binary_process')
-        #segmentedImage.threshold_image()
-        #segmentedImage.reshape_square()
-        #window_sizes = segmentedImage.get_window_sizes()
+        segmentedImage = retina.Retina(None, filename, store_path=_result_path('M2', 'binary_vessel', 'disc_centred_binary_process'))
+        # segmentedImage.threshold_image()
+        # segmentedImage.reshape_square()
+        # window_sizes = segmentedImage.get_window_sizes()
         window_sizes = [912]
         window = retina.Window(
             segmentedImage, window_sizes[-1], min_pixels=CONFIG.pixels_per_window)
-        FD_binary,VD_binary,Average_width, t2, t4, td = tortuosity_measures.evaluate_window(window, CONFIG.pixels_per_window, CONFIG.sampling_size, CONFIG.r_2_threshold,store_path=f'{AUTOMORPH_DATA}/Results/M2/binary_vessel/disc_centred_binary_process/')
-        #print(window.tags)
+        FD_binary, VD_binary, Average_width, t2, t4, td = tortuosity_measures.evaluate_window(
+            window, CONFIG.pixels_per_window, CONFIG.sampling_size, CONFIG.r_2_threshold,
+            store_path=_result_path('M2', 'binary_vessel', 'disc_centred_binary_process'))
+        # print(window.tags)
         binary_t2_list.append(t2)
         binary_t4_list.append(t4)
         binary_t5_list.append(td)
@@ -97,8 +117,8 @@ for filename in sorted(glob.glob(os.path.join(Binary_PATH, '*.png'))):
         binary_VD_binary.append(VD_binary)
         binary_Average_width.append(Average_width)
         name_binary_list.append(filename.split('/')[-1])
-        
-    except:
+
+    except Exception:  # noqa: BLE001
         binary_t2_list.append(-1)
         binary_t4_list.append(-1)
         binary_t5_list.append(-1)
@@ -111,41 +131,44 @@ for filename in sorted(glob.glob(os.path.join(Binary_PATH, '*.png'))):
 for filename in sorted(glob.glob(os.path.join(Artery_PATH, '*.png'))):
 
     try:
-        
-        segmentedImage = retina.Retina(None, filename,store_path=f'{AUTOMORPH_DATA}/Results/M2/artery_vein/disc_centred_artery_process')
+
+        segmentedImage = retina.Retina(None, filename, store_path=_result_path('M2', 'artery_vein', 'disc_centred_artery_process'))
         window_sizes = [912]
         window = retina.Window(
             segmentedImage, window_sizes[-1], min_pixels=CONFIG.pixels_per_window)
-        FD_binary,VD_binary,Average_width, t2, t4, td = tortuosity_measures.evaluate_window(window, CONFIG.pixels_per_window, CONFIG.sampling_size, CONFIG.r_2_threshold,store_path=f'{AUTOMORPH_DATA}/Results/M2/artery_vein/disc_centred_artery_process/')
-        #print(window.tags)
+        FD_binary, VD_binary, Average_width, t2, t4, td = tortuosity_measures.evaluate_window(
+            window, CONFIG.pixels_per_window, CONFIG.sampling_size, CONFIG.r_2_threshold,
+            store_path=_result_path('M2', 'artery_vein', 'disc_centred_artery_process'))
+        # print(window.tags)
         artery_t2_list.append(t2)
         artery_t4_list.append(t4)
         artery_t5_list.append(td)
         artery_FD_binary.append(FD_binary)
         artery_VD_binary.append(VD_binary)
         artery_Average_width.append(Average_width)
-        name_artery_list.append(filename.split('/')[-1]) 
-    
-    
-    except:
+        name_artery_list.append(filename.split('/')[-1])
+
+    except Exception:  # noqa: BLE001
         artery_t2_list.append(-1)
         artery_t4_list.append(-1)
         artery_t5_list.append(-1)
         artery_FD_binary.append(-1)
         artery_VD_binary.append(-1)
-        artery_Average_width.append(-1)  
-        name_artery_list.append(filename.split('/')[-1])  
+        artery_Average_width.append(-1)
+        name_artery_list.append(filename.split('/')[-1])
 
 
 for filename in sorted(glob.glob(os.path.join(Vein_PATH, '*.png'))):
 
     try:
-        segmentedImage = retina.Retina(None, filename,store_path=f'{AUTOMORPH_DATA}/Results/M2/artery_vein/disc_centred_vein_process')
+        segmentedImage = retina.Retina(None, filename, store_path=_result_path('M2', 'artery_vein', 'disc_centred_vein_process'))
         window_sizes = [912]
         window = retina.Window(
             segmentedImage, window_sizes[-1], min_pixels=CONFIG.pixels_per_window)
-        FD_binary,VD_binary,Average_width, t2, t4, td = tortuosity_measures.evaluate_window(window, CONFIG.pixels_per_window, CONFIG.sampling_size, CONFIG.r_2_threshold,store_path=f'{AUTOMORPH_DATA}/Results/M2/artery_vein/disc_centred_vein_process/')
-        #print(window.tags)
+        FD_binary, VD_binary, Average_width, t2, t4, td = tortuosity_measures.evaluate_window(
+            window, CONFIG.pixels_per_window, CONFIG.sampling_size, CONFIG.r_2_threshold,
+            store_path=_result_path('M2', 'artery_vein', 'disc_centred_vein_process'))
+        # print(window.tags)
         vein_t2_list.append(t2)
         vein_t4_list.append(t4)
         vein_t5_list.append(td)
@@ -153,9 +176,9 @@ for filename in sorted(glob.glob(os.path.join(Vein_PATH, '*.png'))):
         vein_VD_binary.append(VD_binary)
         vein_Average_width.append(Average_width)
         name_vein_list.append(filename.split('/')[-1])
-    
-    except:
-        
+
+    except Exception:  # noqa: BLE001
+
         vein_t2_list.append(-1)
         vein_t4_list.append(-1)
         vein_t5_list.append(-1)
@@ -165,7 +188,7 @@ for filename in sorted(glob.glob(os.path.join(Vein_PATH, '*.png'))):
         name_vein_list.append(filename.split('/')[-1])
 
 
-Disc_file = pd.read_csv(f"{AUTOMORPH_DATA}/Results/M3/Disc_centred/Disc_cup_results.csv").astype({"Name": "object"})
+Disc_file = pd.read_csv(_result_path('M3', 'Disc_centred', 'Disc_cup_results.csv')).astype({"Name": "object"})
 
 Data4stage2_binary = pd.DataFrame(
     {
@@ -208,4 +231,4 @@ Disc_file_binary = pd.merge(Disc_file, Data4stage2_binary, how="outer", on=["Nam
 artery_vein = pd.merge(Data4stage2_artery, Data4stage2_vein, how="outer", on=["Name"])
 Data4stage2 = pd.merge(Disc_file_binary, artery_vein, how="outer", on=["Name"])
 
-Data4stage2.to_csv(f'{AUTOMORPH_DATA}/Results/M3/Disc_centred/Disc_Measurement.csv', index = None, encoding='utf8')
+Data4stage2.to_csv(_result_path('M3', 'Disc_centred', 'Disc_Measurement.csv'), index=None, encoding='utf8')
