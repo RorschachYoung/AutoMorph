@@ -19,7 +19,7 @@ conda create -n automorph python=3.11 -y
 Step 2: Activate virtual environment and clone the code.
 ```bash
 conda activate automorph
-git clone https://github.com/rmaphoh/AutoMorph.git
+git clone https://github.com/RorschachYoung/AutoMorph.git
 cd AutoMorph
 ```
 
